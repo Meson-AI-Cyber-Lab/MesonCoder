@@ -1,125 +1,75 @@
-# Coder: Expert-level Python Code Generator
+# PyMeson
 
-**Coder** is an advanced Python code generation engine that turns structured, semantic instructions (as dictionaries) into clean, idiomatic, and modern Python source code.  
-It supports nearly every Python construct—including async, comprehensions, pattern matching, dataclasses, and more.  
-Designed for AI coding tools, transpilers, and any project that needs robust Python code synthesis.
+**Expert-level Python code generator**  
+Developed by [meson Ai & cyber lab]
+
+---
+
+## Overview
+
+PyMeson is an advanced, open-source Python code generator designed for developers and researchers who need to automate code creation, prototyping, or rapid algorithm development.  
+Harnessing the power of semantic understanding, PyMeson helps you generate robust, readable Python code with ease.
 
 ---
 
 ## Features
 
-- **Full Python language support:**  
-  All core syntax (assignments, control flow, loops, functions, classes, imports, exception handling, etc.)
-- **Modern constructs:**  
-  - `async`/`await`, `async for`, `async with`
-  - Pattern matching (`match`/`case`, Python 3.10+)
-  - Type/variable annotations, PEP 526
-  - `@dataclass` and magic methods
-  - Metaclasses, global/nonlocal, del
-  - Docstrings, decorators, comprehensions, and more
-- **Extensible:**  
-  Add new handlers for new Python features or custom constructs easily.
-- **Structured Input:**  
-  Write algorithms as lists of semantic steps (dictionaries), not raw code.
+- 🔥 **Semantic code generation:** Understands your intent, not just keywords
+- 🧩 **Modular design:** Easy to extend and customize
+- 🚀 **Ready-to-use examples and tests**
+- 📚 **Comprehensive documentation**
+- 🕊️ **100% Free and Open Source (GPLv3)**
 
 ---
 
-## Installation
+## Getting Started
 
-Clone or copy this repository.  
-No external dependencies except Python 3.7+.
+### Installation
+
+Clone the repository:
+```sh
+git clone https://github.com/meson-ai-lab/pymeson.git
+cd pymeson
+```
+
+### Usage
+
+Run the main module or explore the examples:
+```sh
+python pymeson.py
+```
+
+See `examples/quickstart.py` for a sample workflow.
 
 ---
 
-## Usage Example
+## Documentation
 
-### 1. Import and instantiate:
-
-```python
-from coder import Coder
-
-coder = Coder()
-```
-
-### 2. Provide structured steps
-
-```python
-steps = [
-    {"type": "func_def", "name": "greet", "args": ["name"], "body": [
-        {"type": "expr", "expr": "print(f'Hello, {name}!')"}
-    ]},
-    {"type": "blank_line"},
-    {"type": "main_guard", "body": [
-        {"type": "func_call", "name": "greet", "args": ["'World'"]}
-    ]}
-]
-```
-
-### 3. Generate code
-
-```python
-code = coder.generate_code(steps)
-print(code)
-```
-
-**Output:**
-```python
-def greet(name):
-    print(f'Hello, {name}!')
-
-if __name__ == '__main__':
-    greet('World')
-```
+See the `docs/` folder for usage guides, API references, and advanced tips.
 
 ---
 
-## Advanced Example
+## Contributing
 
-Handles async, pattern matching, dataclasses, etc.
-
-```python
-steps = [
-    {"type": "shebang", "line": "/usr/bin/env python3"},
-    {"type": "encoding", "encoding": "utf-8"},
-    {"type": "dataclass", "name": "Item", "body": [
-        {"type": "annotation", "target": "name", "annotation": "str"},
-        {"type": "annotation", "target": "count", "annotation": "int", "value": 0}
-    ]},
-    {"type": "blank_line"},
-    {"type": "async_func_def", "name": "fetch", "args": ["url"], "body": [
-        {"type": "await", "expr": "http_get(url)", "target": "resp"},
-        {"type": "return", "value": "resp"}
-    ]},
-    {"type": "blank_line"},
-    {"type": "match", "subject": "action", "cases": [
-        {"type": "case", "pattern": "'run'", "body": [
-            {"type": "expr", "expr": "print('Running!')"}
-        ]},
-        {"type": "case", "pattern": "_", "body": [
-            {"type": "expr", "expr": "print('Unknown!')"}
-        ]}
-    ]}
-]
-code = coder.generate_code(steps)
-print(code)
-```
-
----
-
-## Extending Coder
-
-To add a new Python construct, add a handler in the `Coder` class and register it in `self.supported_operations`.
+We welcome contributions! Please see `CONTRIBUTING.md` (coming soon) for guidelines.
 
 ---
 
 ## License
 
-GPLv3
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.  
+See the [LICENSE](./LICENSE) file for details.
 
 ---
 
-## Author
+## Credits
 
-[Rifat-Rezwan-02](https://github.com/Rifat-Rezwan-02)
+Developed and maintained by [meson Ai & cyber lab].  
+Original author: Rifat-Rezwan-02
 
 ---
+
+## Contact
+
+For questions, suggestions, or collaboration, open an issue or contact us at:  
+**meson.ai.lab [at] gmail.com** (replace [at] with @)
