@@ -1,4 +1,4 @@
-# PyMeson
+# MesonCoder
 
 **Expert-level Python code generator**  
 Developed by [meson Ai & cyber lab]
@@ -7,8 +7,8 @@ Developed by [meson Ai & cyber lab]
 
 ## Overview
 
-PyMeson is an advanced, open-source Python code generator designed for developers and researchers who need to automate code creation, prototyping, or rapid algorithm development.  
-Harnessing the power of semantic understanding, PyMeson helps you generate robust, readable Python code with ease.
+MesonCoder is an advanced, open-source Python code generator designed for developers and researchers who want to automate code creation, prototyping, or rapid algorithm development.  
+Harnessing semantic understanding, MesonCoder helps you generate robust, readable Python code with ease.
 
 ---
 
@@ -28,15 +28,15 @@ Harnessing the power of semantic understanding, PyMeson helps you generate robus
 
 Clone the repository:
 ```sh
-git clone https://github.com/meson-ai-lab/pymeson.git
-cd pymeson
+git clone https://github.com/meson-ai-lab/mesoncoder.git
+cd mesoncoder
 ```
 
 ### Usage
 
 Run the main module or explore the examples:
 ```sh
-python pymeson.py
+python mesoncoder.py
 ```
 
 See `examples/quickstart.py` for a sample workflow.
@@ -51,7 +51,18 @@ See the `docs/` folder for usage guides, API references, and advanced tips.
 
 ## Contributing
 
-We welcome contributions! Please see `CONTRIBUTING.md` (coming soon) for guidelines.
+We welcome contributions from the community!
+
+- **Fork the repository** and create your branch: `git checkout -b feature/YourFeature`
+- **Commit your changes**: `git commit -am 'Add some feature'`
+- **Push to the branch**: `git push origin feature/YourFeature`
+- **Open a Pull Request**
+
+For major changes, please open an issue first to discuss what you would like to change.
+
+Please make sure to update tests as appropriate.
+
+**Any contribution is appreciated, whether it's new features, bug fixes, documentation, or suggestions!**
 
 ---
 
