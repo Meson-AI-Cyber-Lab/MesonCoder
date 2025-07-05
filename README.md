@@ -83,4 +83,4 @@ Original author: Rifat-Rezwan-02
 ## Contact
 
 For questions, suggestions, or collaboration, open an issue or contact us at:  
-**meson.ai.lab [at] gmail.com** (replace [at] with @)
+**rifatrezwan22@gmail.com**
