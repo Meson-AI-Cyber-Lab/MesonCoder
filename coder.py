@@ -7,6 +7,18 @@ Now with advanced features:
   @dataclass.
 
 Extend by adding new handlers to self.supported_operations.
+
+Supports new Python features:
+- Positional-only and keyword-only parameters
+- Inline type alias definitions
+- Future import statements
+- Explicit __slots__ in class definitions
+- F-string debugging (f"{x=}")
+- contextlib decorators (e.g. @contextmanager)
+- Unpacking in function arguments (*args, **kwargs)
+- match/case “as” bindings and star patterns
+- Walrus operator (:=)
+- New PEP additions (e.g. Python 3.12–3.13 features)
 """
 
 from typing import List, Dict, Any, Optional
@@ -73,6 +85,12 @@ class Coder:
             "metaclass_class_def": self._handle_metaclass_class_def,
             "generator_expr": self._handle_generator_expr,
             "dataclass": self._handle_dataclass,
+            # NEW FEATURES
+            "type_alias": self._handle_type_alias,
+            "future_import": self._handle_future_import,
+            "walrus": self._handle_walrus,
+            "fstring_debug": self._handle_fstring_debug,
+            "type_params": self._handle_type_params,  # Python 3.12/3.13 PEP695/PEP696 stub
         }
 
     def generate_code(self, steps: List[Dict[str, Any]], indent: int = 0) -> str:
@@ -169,13 +187,50 @@ class Coder:
         lines = []
         for deco in decorators:
             lines.append(f"{self._indent(indent)}@{deco}")
-        args = step.get("args", [])
-        args_sig = ", ".join(args)
+        # --- Argument signature construction with all modern features ---
+        args_sig_parts = []
+        po_args = step.get("positional_only", [])   # e.g. ['a', 'b']
+        args = step.get("args", [])                 # e.g. ['c', 'd']
+        vararg = step.get("vararg")                 # e.g. "args"
+        ko_args = step.get("keyword_only", [])      # e.g. ['e', 'f']
+        kwarg = step.get("kwarg")                   # e.g. "kwargs"
+
+        # Positional-only
+        if po_args:
+            args_sig_parts.extend(po_args)
+            args_sig_parts.append("/")  # positional marker
+
+        # Regular args
+        args_sig_parts.extend(args)
+
+        # *args (vararg)
+        if vararg:
+            args_sig_parts.append(f"*{vararg}")
+        else:
+            # Insert * for keyword-only if present, but no *args
+            if ko_args:
+                args_sig_parts.append("*")
+        # Keyword-only
+        if ko_args:
+            args_sig_parts.extend(ko_args)
+        # **kwargs
+        if kwarg:
+            args_sig_parts.append(f"**{kwarg}")
+
+        # Type hints
         if "type_hints" in step:
             hints = step["type_hints"]
-            args_sig = ", ".join(
-                f"{a}: {hints[a]}" if a in hints else a for a in args
-            )
+            def hintify(a): return f"{a}: {hints[a]}" if a in hints else a
+            def varhint(a): return f"*{a}: {hints[a]}" if a in hints else f"*{a}"
+            def kwhint(a): return f"**{a}: {hints[a]}" if a in hints else f"**{a}"
+            args_sig_parts = [
+                hintify(a) if a not in ("*", "/") and not a.startswith("*") and not a.startswith("**")
+                else varhint(a[1:]) if a.startswith("*") and not a.startswith("**")
+                else kwhint(a[2:]) if a.startswith("**")
+                else a
+                for a in args_sig_parts
+            ]
+        args_sig = ", ".join(args_sig_parts)
         ret = f" -> {step['returns']}" if "returns" in step else ""
         lines.append(f"{self._indent(indent)}def {step['name']}({args_sig}){ret}:")
         if "docstring" in step:
@@ -221,6 +276,11 @@ class Coder:
         lines.append(f"{self._indent(indent)}class {step['name']}{bases}:")
         if "docstring" in step:
             lines.append(self._handle_docstring({"text": step["docstring"]}, indent+1))
+        # Explicit __slots__
+        if "__slots__" in step:
+            slots = step["__slots__"]
+            slot_str = f"{self._indent(indent+1)}__slots__ = {slots}"
+            lines.append(slot_str)
         body = step.get("body", [])
         if body:
             lines.append(self.generate_code(body, indent+1))
@@ -303,7 +363,7 @@ class Coder:
         lines.append(self.generate_code(body, indent+1))
         return lines
 
-    # ====== ADVANCED HANDLERS (new) ======
+    # ====== ADVANCED HANDLERS ======
 
     # ---- Async/Await ----
     def _handle_async_func_def(self, step, indent):
@@ -311,13 +371,39 @@ class Coder:
         lines = []
         for deco in decorators:
             lines.append(f"{self._indent(indent)}@{deco}")
+        # Same parameter logic as regular def
+        args_sig_parts = []
+        po_args = step.get("positional_only", [])
         args = step.get("args", [])
-        args_sig = ", ".join(args)
+        vararg = step.get("vararg")
+        ko_args = step.get("keyword_only", [])
+        kwarg = step.get("kwarg")
+        if po_args:
+            args_sig_parts.extend(po_args)
+            args_sig_parts.append("/")
+        args_sig_parts.extend(args)
+        if vararg:
+            args_sig_parts.append(f"*{vararg}")
+        else:
+            if ko_args:
+                args_sig_parts.append("*")
+        if ko_args:
+            args_sig_parts.extend(ko_args)
+        if kwarg:
+            args_sig_parts.append(f"**{kwarg}")
         if "type_hints" in step:
             hints = step["type_hints"]
-            args_sig = ", ".join(
-                f"{a}: {hints[a]}" if a in hints else a for a in args
-            )
+            def hintify(a): return f"{a}: {hints[a]}" if a in hints else a
+            def varhint(a): return f"*{a}: {hints[a]}" if a in hints else f"*{a}"
+            def kwhint(a): return f"**{a}: {hints[a]}" if a in hints else f"**{a}"
+            args_sig_parts = [
+                hintify(a) if a not in ("*", "/") and not a.startswith("*") and not a.startswith("**")
+                else varhint(a[1:]) if a.startswith("*") and not a.startswith("**")
+                else kwhint(a[2:]) if a.startswith("**")
+                else a
+                for a in args_sig_parts
+            ]
+        args_sig = ", ".join(args_sig_parts)
         ret = f" -> {step['returns']}" if "returns" in step else ""
         lines.append(f"{self._indent(indent)}async def {step['name']}({args_sig}){ret}:")
         if "docstring" in step:
@@ -353,9 +439,11 @@ class Coder:
         return lines
 
     def _handle_case(self, step, indent):
+        # Enhanced: supports pattern, as binding, guard, star etc.
         pattern = step["pattern"]
         guard = f" if {step['guard']}" if "guard" in step and step["guard"] else ""
-        lines = [f"{self._indent(indent)}case {pattern}{guard}:"]
+        asbind = f" as {step['as']}" if "as" in step else ""
+        lines = [f"{self._indent(indent)}case {pattern}{asbind}{guard}:"]
         body = step.get("body", [])
         lines.append(self.generate_code(body, indent+1) if body else self._indent(indent+1) + "pass")
         return lines
@@ -399,7 +487,6 @@ class Coder:
 
     # ---- Magic Methods ----
     def _handle_magic_method(self, step, indent):
-        # step: {"type": "magic_method", "name": "__add__", "args": ["self", "other"], "body": [...], ...}
         lines = [f"{self._indent(indent)}def {step['name']}({', '.join(step.get('args', []))}):"]
         body = step.get("body", [])
         lines.append(self.generate_code(body, indent+1) if body else self._indent(indent+1) + "pass")
@@ -432,3 +519,32 @@ class Coder:
         lines = [f"{self._indent(indent)}@dataclass"]
         lines.extend(self._handle_class_def(step, indent))
         return lines
+
+    # ====== NEW PYTHON 3.8–3.13 FEATURES ======
+
+    # -- Type Alias (Python 3.12+) --
+    def _handle_type_alias(self, step, indent):
+        # step: {"type": "type_alias", "name": "Vector", "expr": "list[float]"}
+        return f"{self._indent(indent)}type {step['name']} = {step['expr']}"
+
+    # -- Future Import --
+    def _handle_future_import(self, step, indent):
+        # step: {"type": "future_import", "names": ["annotations", "generator_stop"]}
+        names = ", ".join(step["names"])
+        return f"{self._indent(indent)}from __future__ import {names}"
+
+    # -- Walrus Operator (:=) --
+    def _handle_walrus(self, step, indent):
+        # step: {"type": "walrus", "target": "x", "expr": "f()"}
+        return f"{self._indent(indent)}({step['target']} := {step['expr']})"
+
+    # -- F-string debugging (f"{x=}") --
+    def _handle_fstring_debug(self, step, indent):
+        # step: {"type": "fstring_debug", "expr": "x"}
+        return f'{self._indent(indent)}f"{{{step["expr"]}=}}"'
+
+    # -- Type Parameters (PEP 695/696 stub for Python 3.12/3.13) --
+    def _handle_type_params(self, step, indent):
+        # step: {"type": "type_params", "params": ["T", "U"]}
+        params = ", ".join(step["params"])
+        return f"{self._indent(indent)}[{params}]  # Type parameters (PEP 695/696)"
