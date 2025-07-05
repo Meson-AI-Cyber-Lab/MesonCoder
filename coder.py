@@ -19,6 +19,18 @@ Supports new Python features:
 - match/case “as” bindings and star patterns
 - Walrus operator (:=)
 - New PEP additions (e.g. Python 3.12–3.13 features)
+- Exception chaining (raise ... from ...)
+- yield from delegation
+- Multiple contexts in a single with statement
+- Decorator factories (decorators with arguments)
+- Sequence unpacking in assignment targets (e.g. a, *rest, b = ...)
+- Starred patterns inside match cases
+- Chained comparisons and conditional expressions
+- Dynamic imports or importlib usage
+- Multiple-alias imports in one statement
+- Parameterized @dataclass arguments
+- Semantic handlers for exec and eval
+- Specialized support for mypy-style pragmas (# type: ...)
 """
 
 from typing import List, Dict, Any, Optional
@@ -48,13 +60,17 @@ class Coder:
             "return": self._handle_return,
             "lambda": self._handle_lambda,
             "yield": self._handle_yield,
+            "yield_from": self._handle_yield_from,  # NEW
             # Classes
             "class_def": self._handle_class_def,
             # Decorators
             "decorator": self._handle_decorator,
+            "decorator_factory": self._handle_decorator_factory,  # NEW
             # Imports & modules
             "import": self._handle_import,
             "from_import": self._handle_from_import,
+            "importlib_import": self._handle_importlib_import,  # NEW
+            "multi_alias_import": self._handle_multi_alias_import,  # NEW
             # Data structures
             "list_comp": self._handle_list_comp,
             "dict_comp": self._handle_dict_comp,
@@ -62,9 +78,11 @@ class Coder:
             # Exception handling
             "try": self._handle_try,
             "raise": self._handle_raise,
+            "raise_from": self._handle_raise_from,  # NEW
             "assert": self._handle_assert,
             # With/context managers
             "with": self._handle_with,
+            "multi_with": self._handle_multi_with,  # NEW
             # Main guard
             "main_guard": self._handle_main_guard,
             # Advanced (NEW)
@@ -85,12 +103,19 @@ class Coder:
             "metaclass_class_def": self._handle_metaclass_class_def,
             "generator_expr": self._handle_generator_expr,
             "dataclass": self._handle_dataclass,
+            "parameterized_dataclass": self._handle_parameterized_dataclass,  # NEW
             # NEW FEATURES
             "type_alias": self._handle_type_alias,
             "future_import": self._handle_future_import,
             "walrus": self._handle_walrus,
             "fstring_debug": self._handle_fstring_debug,
             "type_params": self._handle_type_params,  # Python 3.12/3.13 PEP695/PEP696 stub
+            "exec": self._handle_exec,  # NEW
+            "eval": self._handle_eval,  # NEW
+            "mypy_pragma": self._handle_mypy_pragma,  # NEW
+            "unpack_assign": self._handle_unpack_assign,  # NEW
+            "chained_comparison": self._handle_chained_comparison,  # NEW
+            "cond_expr": self._handle_cond_expr,  # NEW
         }
 
     def generate_code(self, steps: List[Dict[str, Any]], indent: int = 0) -> str:
@@ -114,9 +139,25 @@ class Coder:
     def _handle_assign(self, step, indent):
         targets = step["target"]
         if isinstance(targets, list):
+            # Sequence unpacking, e.g. a, *rest, b = ...
             targets = ", ".join(targets)
         value = step["value"]
-        return f"{self._indent(indent)}{targets} = {value}"
+        # Specialized support for mypy-style pragma
+        pragma = step.get("mypy_pragma")
+        line = f"{self._indent(indent)}{targets} = {value}"
+        if pragma:
+            line += f"  # type: {pragma}"
+        return line
+
+    def _handle_unpack_assign(self, step, indent):
+        # Explicit handler for assignment with unpacking/sequence targets
+        targets = ", ".join(step["targets"])
+        value = step["value"]
+        pragma = step.get("mypy_pragma")
+        line = f"{self._indent(indent)}{targets} = {value}"
+        if pragma:
+            line += f"  # type: {pragma}"
+        return line
 
     def _handle_expr(self, step, indent):
         return f"{self._indent(indent)}{step['expr']}"
@@ -267,6 +308,11 @@ class Coder:
         value = step.get("value")
         return f"{self._indent(indent)}yield {value}" if value is not None else f"{self._indent(indent)}yield"
 
+    def _handle_yield_from(self, step, indent):
+        # Delegation: yield from <expr>
+        expr = step["expr"]
+        return f"{self._indent(indent)}yield from {expr}"
+
     # ---- Classes ----
     def _handle_class_def(self, step, indent):
         bases = f"({', '.join(step.get('bases', []))})" if step.get("bases") else ""
@@ -293,6 +339,12 @@ class Coder:
         # Not used directly; handled in func_def/class_def
         return ""
 
+    def _handle_decorator_factory(self, step, indent):
+        # e.g., @deco(arg1, arg2)
+        deco = step["deco"]
+        args = ", ".join(str(a) for a in step.get("args", []))
+        return f"{self._indent(indent)}@{deco}({args})"
+
     # ---- Imports & Modules ----
     def _handle_import(self, step, indent):
         alias = f" as {step['as']}" if "as" in step else ""
@@ -302,6 +354,20 @@ class Coder:
         names = ", ".join(step["names"])
         alias = f" as {step['as']}" if "as" in step else ""
         return f"{self._indent(indent)}from {step['module']} import {names}{alias}"
+
+    def _handle_importlib_import(self, step, indent):
+        # Dynamic import using importlib
+        module = step["module"]
+        as_var = step.get("as")
+        line = f"{self._indent(indent)}import importlib"
+        import_line = f"{self._indent(indent)}{as_var or module} = importlib.import_module('{module}')"
+        return [line, import_line]
+
+    def _handle_multi_alias_import(self, step, indent):
+        # Multiple modules, each with an alias
+        # step: {type: multi_alias_import, "modules": [{"name":..., "as":...}, ...]}
+        modstrs = [f"{m['name']} as {m['as']}" for m in step["modules"]]
+        return f"{self._indent(indent)}import {', '.join(modstrs)}"
 
     # ---- Data Structures & Comprehensions ----
     def _handle_list_comp(self, step, indent):
@@ -345,13 +411,29 @@ class Coder:
     def _handle_raise(self, step, indent):
         return f"{self._indent(indent)}raise {step['exception']}"
 
+    def _handle_raise_from(self, step, indent):
+        # Exception chaining: raise ... from ...
+        exc = step["exception"]
+        cause = step["from"]
+        return f"{self._indent(indent)}raise {exc} from {cause}"
+
     def _handle_assert(self, step, indent):
         msg = f", {step['msg']}" if "msg" in step else ""
         return f"{self._indent(indent)}assert {step['condition']}{msg}"
 
     # ---- With/context manager ----
     def _handle_with(self, step, indent):
-        lines = [f"{self._indent(indent)}with {step['context']}:"]
+        context = step["context"]
+        lines = [f"{self._indent(indent)}with {context}:"]
+        body = step.get("body", [])
+        lines.append(self.generate_code(body, indent+1) or self._indent(indent+1) + "pass")
+        return lines
+
+    def _handle_multi_with(self, step, indent):
+        # Multiple contexts in one with statement
+        contexts = step["contexts"]  # List of context strings, e.g. ["open('a') as f", "lock"]
+        ctx_str = ", ".join(contexts)
+        lines = [f"{self._indent(indent)}with {ctx_str}:"]
         body = step.get("body", [])
         lines.append(self.generate_code(body, indent+1) or self._indent(indent+1) + "pass")
         return lines
@@ -441,9 +523,15 @@ class Coder:
     def _handle_case(self, step, indent):
         # Enhanced: supports pattern, as binding, guard, star etc.
         pattern = step["pattern"]
+        # Support for starred patterns in match cases
+        if isinstance(pattern, list):
+            # e.g. ["a", "*rest", "b"]
+            pattern_str = ", ".join(pattern)
+        else:
+            pattern_str = pattern
         guard = f" if {step['guard']}" if "guard" in step and step["guard"] else ""
         asbind = f" as {step['as']}" if "as" in step else ""
-        lines = [f"{self._indent(indent)}case {pattern}{asbind}{guard}:"]
+        lines = [f"{self._indent(indent)}case {pattern_str}{asbind}{guard}:"]
         body = step.get("body", [])
         lines.append(self.generate_code(body, indent+1) if body else self._indent(indent+1) + "pass")
         return lines
@@ -516,7 +604,20 @@ class Coder:
 
     # ---- Dataclass ----
     def _handle_dataclass(self, step, indent):
-        lines = [f"{self._indent(indent)}@dataclass"]
+        lines = []
+        if "args" in step:
+            # Parameterized @dataclass
+            argstr = ", ".join(f"{k}={v}" for k, v in step["args"].items())
+            lines.append(f"{self._indent(indent)}@dataclass({argstr})")
+        else:
+            lines.append(f"{self._indent(indent)}@dataclass")
+        lines.extend(self._handle_class_def(step, indent))
+        return lines
+
+    def _handle_parameterized_dataclass(self, step, indent):
+        # Explicit handler for parameterized dataclass
+        argstr = ", ".join(f"{k}={v}" for k, v in step["args"].items())
+        lines = [f"{self._indent(indent)}@dataclass({argstr})"]
         lines.extend(self._handle_class_def(step, indent))
         return lines
 
@@ -548,3 +649,42 @@ class Coder:
         # step: {"type": "type_params", "params": ["T", "U"]}
         params = ", ".join(step["params"])
         return f"{self._indent(indent)}[{params}]  # Type parameters (PEP 695/696)"
+
+    # ---- Semantic handler for exec ----
+    def _handle_exec(self, step, indent):
+        expr = step["expr"]
+        globals_ = f", {step['globals']}" if "globals" in step else ""
+        locals_ = f", {step['locals']}" if "locals" in step else ""
+        return f"{self._indent(indent)}exec({expr}{globals_}{locals_})"
+
+    # ---- Semantic handler for eval ----
+    def _handle_eval(self, step, indent):
+        expr = step["expr"]
+        globals_ = f", {step['globals']}" if "globals" in step else ""
+        locals_ = f", {step['locals']}" if "locals" in step else ""
+        return f"{self._indent(indent)}eval({expr}{globals_}{locals_})"
+
+    # ---- Specialized support for mypy-style pragmas ----
+    def _handle_mypy_pragma(self, step, indent):
+        # # type: ignore/TYPE
+        pragma = step["pragma"]
+        return f"{self._indent(indent)}# type: {pragma}"
+
+    # ---- Chained Comparisons ----
+    def _handle_chained_comparison(self, step, indent):
+        # e.g., a < b < c > d
+        expr = " ".join(step["comparisons"])  # ["a", "<", "b", "<", "c", ">", "d"]
+        target = step.get("target")
+        result = f"{self._indent(indent)}{expr}"
+        if target:
+            result = f"{self._indent(indent)}{target} = {expr}"
+        return result
+
+    # ---- Conditional Expressions ----
+    def _handle_cond_expr(self, step, indent):
+        # e.g. x if cond else y
+        expr = f"{step['then']} if {step['cond']} else {step['else']}"
+        target = step.get("target")
+        if target:
+            return f"{self._indent(indent)}{target} = {expr}"
+        return f"{self._indent(indent)}{expr}"
